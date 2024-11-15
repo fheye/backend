@@ -1,0 +1,17 @@
+{
+  "name": "ethglobal-bangkok",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@pushprotocol/restapi": "^1.7.29",
+    "dotenv": "^16.4.5",
+    "ethers": "^5.7.2"
+  }
+}
