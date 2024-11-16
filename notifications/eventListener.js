@@ -23,26 +23,33 @@ async function main() {
     const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractAbi, provider);
 
     contract.on("MetadataAccessed", async (imageId, accessor, fee, locationX, locationY, timestamp, event) => {
-        console.log("MetadataAccessed event:", imageId, accessor, fee, locationX, locationY, timestamp);
-        const closeUsers = await findCloseUsers(locationX, locationY);
+        const locationXNum = locationX.toNumber();
+        const locationYNum = locationY.toNumber();
 
-        // METHOD 1: Send notification to all users who are close to the given location
+        console.log(
+            "MetadataAccessed Event: ",
+            imageId.toNumber(),
+            accessor,
+            fee.toNumber(),
+            locationXNum,
+            locationYNum,
+            timestamp.toNumber()
+        );
+
+        const closeUsers = await findCloseUsers(locationXNum, locationYNum);
+
         closeUsers.forEach(async (user) => {
-            const title = "Criminal Spotted Near Your";
-            const distance = Math.sqrt((locationX - user.locationX) ** 2 + (locationY - user.locationY) ** 2);
-            const body = `A criminal was spotted ${distance} meters away from your last recorded location. Stay safe!`;
-            // Create a google maps link with given coordinates
-            await sendNotification(channelAdmin, closeUsers, title, body);
-        });
-        
-        // METHOD 2: Send bulk nofication, dont calculate distance for each user but send criminal coordinates
-        const title = "Criminal Spotted Near Your";
-        const mapsLink = `https://www.google.com/maps/search/?api=1&query=${locationX},${locationY}`;
-        const body = `A criminal was spotted near ${mapsLink}. Stay safe!`;
-        const closeUsersAddresses = closeUsers.map((user) => user.address);
-        await sendNotification(channelAdmin, closeUsersAddresses, title, body);
+            const distance = Math.sqrt((locationXNum - user.locationX) ** 2 + (locationYNum - user.locationY) ** 2);
+            let distanceFormatted = distance.toFixed(2);
 
-        // TODO: Select one of the methods above and remove the other one
+            const title = "Criminal Spotted Near You";
+            let body =
+                distance < 0.1
+                    ? `A criminal was spotted on your location. Stay safe!`
+                    : `A criminal was spotted ${distanceFormatted} meters away from your last recorded location. Stay safe!`;
+
+            await sendNotification(channelAdmin, [user.address], title, body);
+        });
     });
 }
 
@@ -52,9 +59,9 @@ async function findCloseUsers(locationX, locationY) {
 
     return [
         {
-            address: "0x1234567890",
-            locationX: 0,
-            locationY: 0,
+            address: "0xa8003509743746EeeAc2f978253a502edC535D44",
+            locationX: 10,
+            locationY: 20,
         },
     ];
 }
