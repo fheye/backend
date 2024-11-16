@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from keras_facenet import FaceNet
 import numpy as np
 import cv2 as cv
@@ -10,8 +11,19 @@ import os
 app = FastAPI()
 embedder = FaceNet()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"], 
+)
+
 @app.post("/process-image/")
-async def process_image(file: UploadFile = File(...)):
+async def process_image(
+    file: UploadFile = File(...),
+    dim: int = Form(...)
+):
     try:
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
@@ -40,8 +52,17 @@ async def process_image(file: UploadFile = File(...)):
             cv.imwrite(face_save_path, face_img_resized2)
             print(f"Saved face {i + 1} at {face_save_path}")
 
-            embedding = embedder.embeddings(face_img_resized)[0]
-            formatted_embedding = [round(float(val), 4) for val in embedding]
+            full_embedding = embedder.embeddings(face_img_resized)[0]
+            normalized_embedding = ((full_embedding + 1) / 2) * 255
+            embedding_length = len(normalized_embedding)
+
+            indices = [
+                int(round(i * (embedding_length - 1) / (dim - 1))) if dim > 1 else 0
+                for i in range(dim)
+            ]
+
+            reduced_embedding = [normalized_embedding[idx] for idx in indices]
+            formatted_embedding = [int(round(val)) for val in reduced_embedding]
             embeddings.append(formatted_embedding)
         
         return JSONResponse(content={
