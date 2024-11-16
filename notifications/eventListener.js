@@ -2,6 +2,10 @@ const ethers = require("ethers");
 const contractAbi = require("./abis/contractAbi.json");
 require("dotenv").config();
 const { PushAPI, CONSTANTS } = require("@pushprotocol/restapi");
+const axios = require("axios");
+
+const subgraphUrl = `${process.env.GRAPHQL_URL}/subgraphs/name/${process.env.SUBGRAPH_NAME}`;
+const NOTIFY_MAX_DISTANCE = 20;
 
 const checkAndGetWallet = (provider) => {
     let walletPrivateKey = process.env.WALLET_PRIVATE_KEY;
@@ -36,9 +40,9 @@ async function main() {
             timestamp.toNumber()
         );
 
-        const closeUsers = await findCloseUsers(locationXNum, locationYNum);
+        const nearbyUsers = await getNearbyUsers(locationXNum, locationYNum);
 
-        closeUsers.forEach(async (user) => {
+        nearbyUsers.forEach(async (user) => {
             const distance = Math.sqrt((locationXNum - user.locationX) ** 2 + (locationYNum - user.locationY) ** 2);
             let distanceFormatted = distance.toFixed(2);
 
@@ -53,28 +57,49 @@ async function main() {
     });
 }
 
-async function findCloseUsers(locationX, locationY) {
-    // TODO: Create a graph query to find address of users who are close to the given location
-    // TODO: Return address and last locations of users who are close to the given location
+const getNearbyUsers = async (locationX, locationY) => {
+    try {
+        const query = `
+            query GetUsersByLocation($minX: Int!, $maxX: Int!, $minY: Int!, $maxY: Int!) {
+                users(where: { locationX_gte: $minX, locationX_lte: $maxX, locationY_gte: $minY, locationY_lte: $maxY }) {
+                    id
+                    locationX
+                    locationY
+                }
+            }`;
 
-    return [
-        {
-            address: "0xa8003509743746EeeAc2f978253a502edC535D44",
-            locationX: 10,
-            locationY: 20,
-        },
-    ];
-}
+        const variables = {
+            minX: locationX - NOTIFY_MAX_DISTANCE,
+            maxX: locationX + NOTIFY_MAX_DISTANCE,
+            minY: locationY - NOTIFY_MAX_DISTANCE,
+            maxY: locationY + NOTIFY_MAX_DISTANCE,
+        };
+
+        const response = await axios.post(subgraphUrl, {
+            query,
+            variables,
+        });
+
+        return response.data.data.users;
+    } catch (error) {
+        console.error("Error fetching nearby users:", error.message);
+        return [];
+    }
+};
 
 async function sendNotification(user, recipients, title, body) {
     if (recipients == null) recipients = ["*"];
 
-    const response = await user.channel.send(recipients, {
-        notification: {
-            title: title,
-            body: body,
-        },
-    });
+    try {
+        await user.channel.send(recipients, {
+            notification: {
+                title: title,
+                body: body,
+            },
+        });
+    } catch (error) {
+        console.error("Error sending notification:", error.message);
+    }
 }
 
 main().catch((error) => {
