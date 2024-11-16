@@ -5,7 +5,7 @@ const { PushAPI, CONSTANTS } = require("@pushprotocol/restapi");
 const axios = require("axios");
 
 const subgraphUrl = `${process.env.GRAPHQL_URL}/subgraphs/name/${process.env.SUBGRAPH_NAME}`;
-const NOTIFY_MAX_DISTANCE = 20;
+const NOTIFY_MAX_DISTANCE = 30;
 
 const checkAndGetWallet = (provider) => {
     let walletPrivateKey = process.env.WALLET_PRIVATE_KEY;
@@ -52,7 +52,7 @@ async function main() {
                     ? `A criminal was spotted on your location. Stay safe!`
                     : `A criminal was spotted ${distanceFormatted} meters away from your last recorded location. Stay safe!`;
 
-            await sendNotification(channelAdmin, [user.address], title, body);
+            await sendNotification(channelAdmin, [user.id], title, body);
         });
     });
 }
